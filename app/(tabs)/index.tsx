@@ -1,63 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Button, TextInput } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import Modal from 'react-native-modal';
+import CalendarArea from '@/components/CalendarArea';
+import { View, Text, StyleSheet } from 'react-native';
+
 
 const currentDate = new Date();
 const currentYear = currentDate.getFullYear();
 const currentMonth = currentDate.getMonth() + 1;
-
-const CalendarArea = () => {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [amount, setAmount] = useState('');
-
-  const toggleModal = () => {
-    setModalVisible(!isModalVisible);
-  };
-
-  const handleDayPress = (day: { dateString: string }) => {
-    setSelectedDate(day.dateString);
-    toggleModal();
-  };
-
-  return (
-    <View style={styles.calendarContainer}>
-      <Text style={styles.monthText}>{currentYear}年{currentMonth}月</Text>
-      <Calendar
-        onDayPress={handleDayPress}
-        markedDates={
-          selectedDate
-            ? { [selectedDate]: { selected: true, marked: true } }
-            : {}
-        }
-        theme={{
-          selectedDayBackgroundColor: '#00adf5',
-          todayTextColor: '#00adf5',
-        }}
-      />
-
-      <Modal isVisible={isModalVisible}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>金額を入力</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="金額"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={setAmount}
-          />
-          <Button title="保存" onPress={toggleModal} />
-          <Button title="キャンセル" onPress={toggleModal} />
-        </View>
-      </Modal>
-
-      <Text style={styles.selectedDate}>
-        選択された日付: {selectedDate || 'なし'}
-      </Text>
-    </View>
-  );
-};
 
 const App = () => {
   return (

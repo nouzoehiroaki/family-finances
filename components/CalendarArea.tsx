@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Button, TextInput, TouchableOpacity } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
 import { openDatabaseSync } from 'expo-sqlite'; // Expo SDK 49 以降は `openDatabaseSync`
@@ -67,7 +67,8 @@ const CalendarArea = () => {
     // 金額がある場合は表示、なければ空欄
     setAmount(result && result.total ? result.total.toString() : '');
 
-    toggleModal();
+    //toggleModal();
+    setTimeout(() => toggleModal(), 100);
   };
 
   // モーダルの開閉
@@ -87,9 +88,21 @@ const CalendarArea = () => {
     toggleModal();
   };
 
+  // ✅ データを削除する（該当日付のデータを全削除）
+  const deleteAmount = () => {
+    if (!selectedDate) return;
+
+    db.runSync('DELETE FROM expenses WHERE date = ?;', [selectedDate]);
+    console.log(`Deleted: ${selectedDate}`);
+
+    // データを再取得してカレンダーを更新
+    loadMarkedDates();
+    toggleModal(); // 削除後モーダルを閉じる
+  };
+
   return (
     <View style={styles.calendarContainer}>
-      <Text style={styles.monthText}>カレンダー</Text>
+      {/* <Text style={styles.monthText}>カレンダー</Text> */}
       <Calendar
         onDayPress={handleDayPress}
         markedDates={markedDates}
@@ -98,10 +111,10 @@ const CalendarArea = () => {
           selectedDayBackgroundColor: '#00adf5',
           todayTextColor: '#00adf5',
         }}
-        renderDay={(day: { day: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }, item: { customText: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }) => (
+        renderDay={(day: { day: number | undefined }, item: { customText: string }) => (
           <View style={{ alignItems: 'center' }}>
-            <Text>{day?.day}</Text>
-            {item?.customText && <Text style={{ fontSize: 12, color: '#FF0000' }}>{item.customText}</Text>}
+            <Text>{day?.day !== undefined ? day.day.toString() : ""}</Text>
+            {item?.customText ? <Text style={{ fontSize: 12, color: '#FF0000' }}>{item.customText}</Text> : null}
           </View>
         )}
       />
@@ -109,16 +122,29 @@ const CalendarArea = () => {
       {/* 金額入力モーダル */}
       <Modal isVisible={isModalVisible}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>選択した日付: {selectedDate}</Text>
+
+          <Text style={styles.modalTitle}>
+            選択した日付: {selectedDate ?? "日付未選択"}
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="金額"
             keyboardType="numeric"
-            value={amount}
+            value={amount ?? ''}
             onChangeText={setAmount}
           />
-          <Button title="保存" onPress={saveAmount} />
-          <Button title="キャンセル" onPress={toggleModal} />
+
+          <TouchableOpacity onPress={saveAmount} disabled={!selectedDate} style={[styles.button, !selectedDate && styles.disabledButton]}>
+            <Text style={styles.buttonText}>保存</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={deleteAmount} disabled={!selectedDate} style={[styles.button, styles.deleteButton, !selectedDate && styles.disabledButton]}>
+            <Text style={styles.buttonText}>データ削除</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={toggleModal} style={styles.button}>
+            <Text style={styles.buttonText}>キャンセル</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
     </View>
@@ -154,5 +180,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 10,
     paddingHorizontal: 10,
+  },
+  button: {
+    backgroundColor: '#007BFF',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+    width: 100,
+  },
+  deleteButton: {
+    backgroundColor: '#FF5733',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
   },
 });
