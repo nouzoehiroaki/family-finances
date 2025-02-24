@@ -38,8 +38,7 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
     ) as { date: string; total: number }[];
 
     const daysInMonth = new Date(year, currentMonth.getMonth() + 1, 0).getDate();
-    const today = new Date();
-    const remainingDays = currentMonth.getMonth() === today.getMonth() ? daysInMonth - today.getDate() + 1 : daysInMonth;
+    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
     const dailyBudget = Math.floor(budget / remainingDays);
 
     let newMarkedDates: { [key: string]: any } = {};
@@ -83,8 +82,7 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
 
   const calculateDailyBudget = () => {
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-    const today = new Date();
-    const remainingDays = currentMonth.getMonth() === today.getMonth() ? daysInMonth - today.getDate() + 1 : daysInMonth;
+    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
     const dailyBudget = Math.floor(budget / remainingDays);
     return dailyBudget;
   };
