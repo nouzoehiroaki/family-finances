@@ -20,7 +20,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.hiroaki.nozoe.familyfinances"
     },
     "web": {
       "bundler": "metro",
@@ -34,6 +35,20 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "964c9b3e-7081-43fc-b94a-96aea43d85fc"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/964c9b3e-7081-43fc-b94a-96aea43d85fc"
     }
   }
 }
