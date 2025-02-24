@@ -7,7 +7,7 @@ import { openDatabaseSync } from 'expo-sqlite'; // Expo SDK 49 以降は `openDa
 // データベースを開く
 const db = openDatabaseSync('expenses.db');
 
-const CalendarArea = () => {
+const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number) => void, budget: number }) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [amount, setAmount] = useState('');
@@ -17,7 +17,8 @@ const CalendarArea = () => {
     // アプリ起動時にデータをロード
     createTable();
     loadMarkedDates();
-  }, []);
+    calculateMonthlyTotal();
+  }, [budget]);
 
   // SQLite テーブルを作成
   const createTable = () => {
@@ -34,31 +35,71 @@ const CalendarArea = () => {
   const loadMarkedDates = () => {
     const result = db.getAllSync('SELECT date, SUM(amount) as total FROM expenses GROUP BY date;') as { date: string; total: number }[];
 
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const remainingDays = daysInMonth - today.getDate() + 1; // 今日を含めた残り日数
+    const dailyBudget = Math.floor(budget / remainingDays);
+
     let newMarkedDates: { [key: string]: any } = {};
     result.forEach((row) => {
+      const isOverBudget = row.total > dailyBudget;
       newMarkedDates[row.date] = {
         selected: true,
         marked: true,
         customStyles: {
           container: {
-            backgroundColor: '#FFD700', // 背景色 (ゴールド)
+            backgroundColor: isOverBudget ? '#FF0000' : '#00adf5',
             borderRadius: 10,
             padding: 5,
           },
           text: {
-            color: '#000000', // 文字色 (黒)
+            color: '#000000',
             fontWeight: 'bold',
           }
         },
-        customText: `${row.total}円` // カレンダー上に表示する金額
+        customText: `${row.total}円`
       };
     });
 
     setMarkedDates(newMarkedDates);
   };
 
+  // ✅ 今月の合計支出を計算
+  const calculateMonthlyTotal = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, "0"); // `01` 形式
+    const startDate = `${year}-${month}-01`;
+    const endDate = `${year}-${month}-31`;
+
+    const result = db.getFirstSync(
+      `SELECT SUM(amount) as total FROM expenses WHERE date BETWEEN ? AND ?;`,
+      [startDate, endDate]
+    ) as { total: number } | undefined;
+
+    const total = result?.total ?? 0;
+    onUpdateTotal(total); // `index.tsx` に合計を送る
+  };
+
+  const calculateDailyBudget = () => {
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const remainingDays = daysInMonth - today.getDate() + 1; // 今日を含めた残り日数
+    const dailyBudget = Math.floor(budget / remainingDays);
+    console.log(`1日あたりの予算: ${dailyBudget}円`);
+    return dailyBudget;
+  };
+
   // 日付を選択したとき
   const handleDayPress = (day: { dateString: string }) => {
+    const today = new Date();
+    const selected = new Date(day.dateString);
+
+    // 本日以前の日付は入力不可
+    if (selected.getTime() < today.setHours(0, 0, 0, 0)) {
+      return;
+    }
+
     setSelectedDate(day.dateString);
 
     // SQLite から該当日付の合計金額を取得
@@ -67,7 +108,6 @@ const CalendarArea = () => {
     // 金額がある場合は表示、なければ空欄
     setAmount(result && result.total ? result.total.toString() : '');
 
-    //toggleModal();
     setTimeout(() => toggleModal(), 100);
   };
 
@@ -85,6 +125,7 @@ const CalendarArea = () => {
 
     // データを再取得してカレンダーを更新
     loadMarkedDates();
+    calculateMonthlyTotal();
     toggleModal();
   };
 
@@ -97,6 +138,7 @@ const CalendarArea = () => {
 
     // データを再取得してカレンダーを更新
     loadMarkedDates();
+    calculateMonthlyTotal();
     toggleModal(); // 削除後モーダルを閉じる
   };
 
@@ -147,6 +189,9 @@ const CalendarArea = () => {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* 1日あたりの予算を表示 */}
+      <Text style={styles.dailyBudgetText}>1日あたりの予算: {calculateDailyBudget()}円</Text>
     </View>
   );
 };
@@ -198,5 +243,10 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
+  },
+  dailyBudgetText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
   },
 });
