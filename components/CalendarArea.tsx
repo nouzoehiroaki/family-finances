@@ -1,26 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Modal from 'react-native-modal';
-import { openDatabaseSync } from 'expo-sqlite'; // Expo SDK 49 以降は `openDatabaseSync`
+import { openDatabaseSync } from 'expo-sqlite';
 
-// データベースを開く
 const db = openDatabaseSync('expenses.db');
 
-const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number) => void, budget: number }) => {
+interface CalendarAreaProps {
+  onUpdateTotal: (total: number) => void;
+  budget: number;
+  onMonthChange: (month: Date) => void;
+}
+
+const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProps) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [amount, setAmount] = useState('');
   const [markedDates, setMarkedDates] = useState<{ [key: string]: any }>({});
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isDeleteAllModalVisible, setDeleteAllModalVisible] = useState(false);
 
   useEffect(() => {
-    // アプリ起動時にデータをロード
     createTable();
     loadMarkedDates();
     calculateMonthlyTotal();
-  }, [budget]);
+  }, [budget, currentMonth]);
 
-  // SQLite テーブルを作成
   const createTable = () => {
     db.execSync(
       `CREATE TABLE IF NOT EXISTS expenses (
@@ -29,15 +34,26 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
         amount INTEGER NOT NULL
       );`
     );
+
+    db.execSync(
+      `CREATE TABLE IF NOT EXISTS monthly_budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        year_month TEXT NOT NULL UNIQUE,
+        amount INTEGER NOT NULL
+      );`
+    );
   };
 
-  // データを取得してカレンダーに反映
   const loadMarkedDates = () => {
-    const result = db.getAllSync('SELECT date, SUM(amount) as total FROM expenses GROUP BY date;') as { date: string; total: number }[];
+    const year = currentMonth.getFullYear();
+    const month = (currentMonth.getMonth() + 1).toString().padStart(2, "0");
+    const result = db.getAllSync(
+      'SELECT date, SUM(amount) as total FROM expenses WHERE strftime("%Y-%m", date) = ? GROUP BY date;',
+      [`${year}-${month}`]
+    ) as { date: string; total: number }[];
 
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const remainingDays = daysInMonth - today.getDate() + 1; // 今日を含めた残り日数
+    const daysInMonth = new Date(year, currentMonth.getMonth() + 1, 0).getDate();
+    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
     const dailyBudget = Math.floor(budget / remainingDays);
 
     let newMarkedDates: { [key: string]: any } = {};
@@ -64,11 +80,9 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
     setMarkedDates(newMarkedDates);
   };
 
-  // ✅ 今月の合計支出を計算
   const calculateMonthlyTotal = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, "0"); // `01` 形式
+    const year = currentMonth.getFullYear();
+    const month = (currentMonth.getMonth() + 1).toString().padStart(2, "0");
     const startDate = `${year}-${month}-01`;
     const endDate = `${year}-${month}-31`;
 
@@ -78,77 +92,70 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
     ) as { total: number } | undefined;
 
     const total = result?.total ?? 0;
-    onUpdateTotal(total); // `index.tsx` に合計を送る
+    onUpdateTotal(total);
   };
 
   const calculateDailyBudget = () => {
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const remainingDays = daysInMonth - today.getDate() + 1; // 今日を含めた残り日数
+    const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
     const dailyBudget = Math.floor(budget / remainingDays);
-    console.log(`1日あたりの予算: ${dailyBudget}円`);
     return dailyBudget;
   };
 
-  // 日付を選択したとき
   const handleDayPress = (day: { dateString: string }) => {
-    const today = new Date();
-    const selected = new Date(day.dateString);
-
-    // 本日以前の日付は入力不可
-    if (selected.getTime() < today.setHours(0, 0, 0, 0)) {
-      return;
-    }
-
     setSelectedDate(day.dateString);
 
-    // SQLite から該当日付の合計金額を取得
-    const result = db.getFirstSync('SELECT SUM(amount) as total FROM expenses WHERE date = ?;', [day.dateString]) as { total: number } | undefined;
+    const result = db.getFirstSync(
+      'SELECT SUM(amount) as total FROM expenses WHERE date = ?;',
+      [day.dateString]
+    ) as { total: number } | undefined;
 
-    // 金額がある場合は表示、なければ空欄
     setAmount(result && result.total ? result.total.toString() : '');
-
     setTimeout(() => toggleModal(), 100);
   };
 
-  // モーダルの開閉
+  const handleMonthChange = (month: { year: number, month: number }) => {
+    const newDate = new Date(month.year, month.month - 1, 1);
+    setCurrentMonth(newDate);
+    onMonthChange(newDate);
+  };
+
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
   };
 
-  // 金額を保存する
   const saveAmount = () => {
     if (!selectedDate || !amount) return;
 
     db.runSync('INSERT INTO expenses (date, amount) VALUES (?, ?);', [selectedDate, parseInt(amount)]);
-    console.log(`Saved: ${selectedDate} - ${amount}`);
-
-    // データを再取得してカレンダーを更新
     loadMarkedDates();
     calculateMonthlyTotal();
     toggleModal();
   };
 
-  // ✅ データを削除する（該当日付のデータを全削除）
   const deleteAmount = () => {
     if (!selectedDate) return;
 
     db.runSync('DELETE FROM expenses WHERE date = ?;', [selectedDate]);
-    console.log(`Deleted: ${selectedDate}`);
-
-    // データを再取得してカレンダーを更新
     loadMarkedDates();
     calculateMonthlyTotal();
-    toggleModal(); // 削除後モーダルを閉じる
+    toggleModal();
+  };
+
+  const deleteAllData = () => {
+    db.runSync('DELETE FROM expenses;');
+    loadMarkedDates();
+    calculateMonthlyTotal();
+    setDeleteAllModalVisible(false);
   };
 
   return (
     <View style={styles.calendarContainer}>
-      {/* <Text style={styles.monthText}>カレンダー</Text> */}
       <Calendar
         onDayPress={handleDayPress}
+        onMonthChange={handleMonthChange}
         markedDates={markedDates}
-        markingType={'custom'} // `custom` を使って金額表示
+        markingType={'custom'}
         theme={{
           selectedDayBackgroundColor: '#00adf5',
           todayTextColor: '#00adf5',
@@ -161,10 +168,8 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
         )}
       />
 
-      {/* 金額入力モーダル */}
       <Modal isVisible={isModalVisible}>
         <View style={styles.modalContent}>
-
           <Text style={styles.modalTitle}>
             選択した日付: {selectedDate ?? "日付未選択"}
           </Text>
@@ -190,8 +195,29 @@ const CalendarArea = ({ onUpdateTotal, budget }: { onUpdateTotal: (total: number
         </View>
       </Modal>
 
-      {/* 1日あたりの予算を表示 */}
+      <Modal isVisible={isDeleteAllModalVisible}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>全てのデータを削除しますか？</Text>
+          <Text style={styles.warningText}>この操作は取り消せません。</Text>
+
+          <TouchableOpacity onPress={deleteAllData} style={[styles.button, styles.deleteButton]}>
+            <Text style={styles.buttonText}>削除する</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setDeleteAllModalVisible(false)} style={styles.button}>
+            <Text style={styles.buttonText}>キャンセル</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       <Text style={styles.dailyBudgetText}>1日あたりの予算: {calculateDailyBudget()}円</Text>
+
+      <TouchableOpacity
+        onPress={() => setDeleteAllModalVisible(true)}
+        style={[styles.button, styles.deleteAllButton]}
+      >
+        <Text style={styles.buttonText}>全ての金額をクリア</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -201,12 +227,6 @@ export default CalendarArea;
 const styles = StyleSheet.create({
   calendarContainer: {
     marginBottom: 20,
-  },
-  monthText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
   },
   modalContent: {
     backgroundColor: 'white',
@@ -248,5 +268,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 10,
+  },
+  deleteAllButton: {
+    backgroundColor: '#FF0000',
+    width: '100%',
+    marginTop: 20,
+  },
+  warningText: {
+    color: '#FF0000',
+    marginBottom: 15,
+    fontSize: 14,
   },
 });
