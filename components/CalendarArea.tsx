@@ -103,19 +103,14 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
   };
 
   const handleDayPress = (day: { dateString: string }) => {
-    const today = new Date();
-    const selected = new Date(day.dateString);
-
-    if (selected.getTime() < today.setHours(0, 0, 0, 0)) {
-      return;
-    }
-
     setSelectedDate(day.dateString);
 
-    const result = db.getFirstSync('SELECT SUM(amount) as total FROM expenses WHERE date = ?;', [day.dateString]) as { total: number } | undefined;
+    const result = db.getFirstSync(
+      'SELECT SUM(amount) as total FROM expenses WHERE date = ?;',
+      [day.dateString]
+    ) as { total: number } | undefined;
 
     setAmount(result && result.total ? result.total.toString() : '');
-
     setTimeout(() => toggleModal(), 100);
   };
 
@@ -221,7 +216,7 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
         onPress={() => setDeleteAllModalVisible(true)}
         style={[styles.button, styles.deleteAllButton]}
       >
-        <Text style={styles.buttonText}>全データを削除</Text>
+        <Text style={styles.buttonText}>全ての金額をクリア</Text>
       </TouchableOpacity>
     </View>
   );
