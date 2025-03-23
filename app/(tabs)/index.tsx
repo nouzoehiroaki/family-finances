@@ -102,7 +102,7 @@ const App = () => {
               onPress={() => setIsBudgetModalVisible(false)}
               style={[styles.modalButton, styles.cancelButton]}
             >
-              <Text style={styles.buttonText}>キャンセル</Text>
+              <Text style={styles.buttonText}>完了</Text>
             </TouchableOpacity>
           </View>
         </View>
