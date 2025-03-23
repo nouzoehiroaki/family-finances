@@ -68,19 +68,19 @@ const App = () => {
       <View style={styles.summaryContainer}>
         <Text style={styles.summaryText}>月間</Text>
         <View style={styles.budgetContainer}>
-          <Text style={styles.summaryText}>予算: </Text>
+          <Text style={styles.summaryText}>今月の予算: </Text>
           <Text style={styles.budgetText}>{budget.toLocaleString()}円</Text>
           <TouchableOpacity onPress={() => setIsBudgetModalVisible(true)} style={styles.editButton}>
             <Text style={styles.editButtonText}>編集</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.summaryText}>支出: {totalExpense.toLocaleString()}円</Text>
-        <Text style={styles.summaryText}>残高: {(budget - totalExpense).toLocaleString()}円</Text>
+        <Text style={styles.summaryText}>今月の支出: {totalExpense.toLocaleString()}円</Text>
+        <Text style={styles.summaryText}>今月の残高: {(budget - totalExpense).toLocaleString()}円</Text>
       </View>
 
       <Modal visible={isBudgetModalVisible}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>予算を入力</Text>
+          <Text style={styles.modalTitle}>今月の予算を入力</Text>
           <Text style={styles.modalSubtitle}>
             {currentMonth.getFullYear()}年{currentMonth.getMonth() + 1}月の予算
           </Text>
@@ -102,7 +102,7 @@ const App = () => {
               onPress={() => setIsBudgetModalVisible(false)}
               style={[styles.modalButton, styles.cancelButton]}
             >
-              <Text style={styles.buttonText}>キャンセル</Text>
+              <Text style={styles.buttonText}>完了</Text>
             </TouchableOpacity>
           </View>
         </View>
