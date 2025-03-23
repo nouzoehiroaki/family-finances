@@ -19,6 +19,8 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
   const [markedDates, setMarkedDates] = useState<{ [key: string]: any }>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isDeleteAllModalVisible, setDeleteAllModalVisible] = useState(false);
+  const [isAddingAmount, setIsAddingAmount] = useState(false);
+  const [additionalAmount, setAdditionalAmount] = useState('');
 
   useEffect(() => {
     createTable();
@@ -110,7 +112,8 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
       [day.dateString]
     ) as { total: number } | undefined;
 
-    setAmount(result && result.total ? result.total.toString() : '');
+    setAmount(result?.total?.toString() || '');
+    setIsAddingAmount(false);
     setTimeout(() => toggleModal(), 100);
   };
 
@@ -149,6 +152,26 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
     setDeleteAllModalVisible(false);
   };
 
+  const saveAdditionalAmount = () => {
+    if (!selectedDate || !additionalAmount) return;
+
+    db.runSync(
+      'INSERT INTO expenses (date, amount) VALUES (?, ?);',
+      [selectedDate, parseInt(additionalAmount)]
+    );
+
+    const result = db.getFirstSync(
+      'SELECT SUM(amount) as total FROM expenses WHERE date = ?;',
+      [selectedDate]
+    ) as { total: number } | undefined;
+
+    setAmount(result?.total.toString() || '0');
+    loadMarkedDates();
+    calculateMonthlyTotal();
+    setIsAddingAmount(false);
+    setAdditionalAmount('');
+  };
+
   return (
     <View style={styles.calendarContainer}>
       <Calendar
@@ -185,6 +208,31 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
             <Text style={styles.buttonText}>保存</Text>
           </TouchableOpacity>
 
+          {!isAddingAmount ? (
+            <TouchableOpacity
+              onPress={() => setIsAddingAmount(true)}
+              style={[styles.button, styles.addButton]}
+            >
+              <Text style={styles.buttonText}>金額を追加</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.additionalInputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="追加金額"
+                keyboardType="numeric"
+                value={additionalAmount}
+                onChangeText={setAdditionalAmount}
+              />
+              <TouchableOpacity
+                onPress={saveAdditionalAmount}
+                style={[styles.button, styles.addButton]}
+              >
+                <Text style={styles.buttonText}>追加を保存</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity onPress={deleteAmount} disabled={!selectedDate} style={[styles.button, styles.deleteButton, !selectedDate && styles.disabledButton]}>
             <Text style={styles.buttonText}>データ削除</Text>
           </TouchableOpacity>
@@ -212,12 +260,12 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
 
       <Text style={styles.dailyBudgetText}>1日あたりの予算: {calculateDailyBudget()}円</Text>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         onPress={() => setDeleteAllModalVisible(true)}
         style={[styles.button, styles.deleteAllButton]}
       >
-        <Text style={styles.buttonText}>全ての金額をクリア</Text>
-      </TouchableOpacity>
+        <Text style={styles.buttonText}>入力した全ての金額クリア</Text>
+      </TouchableOpacity> */}
     </View>
   );
 };
@@ -278,5 +326,15 @@ const styles = StyleSheet.create({
     color: '#FF0000',
     marginBottom: 15,
     fontSize: 14,
+  },
+  addButton: {
+    backgroundColor: '#28a745',
+    marginTop: 10,
+    width: 150,
+  },
+  additionalInputContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
   },
 });
