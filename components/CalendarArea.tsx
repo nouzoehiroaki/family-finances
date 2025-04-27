@@ -86,7 +86,8 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
     const year = currentMonth.getFullYear();
     const month = (currentMonth.getMonth() + 1).toString().padStart(2, "0");
     const startDate = `${year}-${month}-01`;
-    const endDate = `${year}-${month}-31`;
+    const lastDay = new Date(year, currentMonth.getMonth() + 1, 0).getDate();
+    const endDate = `${year}-${month}-${lastDay.toString().padStart(2, "0")}`;
 
     const result = db.getFirstSync(
       `SELECT SUM(amount) as total FROM expenses WHERE date BETWEEN ? AND ?;`,
