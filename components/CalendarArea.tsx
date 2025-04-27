@@ -56,12 +56,11 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
     ) as { date: string; total: number }[];
 
     const daysInMonth = new Date(year, currentMonth.getMonth() + 1, 0).getDate();
-    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
-    const dailyBudget = Math.floor(budget / remainingDays);
+    const dailyBudgetForMark = Math.floor(budget / daysInMonth);
 
     let newMarkedDates: { [key: string]: any } = {};
     result.forEach((row) => {
-      const isOverBudget = row.total > dailyBudget;
+      const isOverBudget = row.total > dailyBudgetForMark;
       newMarkedDates[row.date] = {
         selected: true,
         marked: true,
@@ -100,9 +99,8 @@ const CalendarArea = ({ onUpdateTotal, budget, onMonthChange }: CalendarAreaProp
 
   const calculateDailyBudget = () => {
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-    const remainingDays = daysInMonth - currentMonth.getDate() + 1;
-    const dailyBudget = Math.floor(budget / remainingDays);
-    return dailyBudget;
+    if (daysInMonth === 0) return 0;
+    return Math.floor(budget / daysInMonth);
   };
 
   const handleDayPress = (day: { dateString: string }) => {
